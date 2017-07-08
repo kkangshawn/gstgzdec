@@ -2,7 +2,7 @@
  * GStreamer
  * Copyright (C) 2005 Thomas Vander Stichele <thomas@apestaart.org>
  * Copyright (C) 2005 Ronald S. Bultje <rbultje@ronald.bitfreak.net>
- * Copyright (C) 2017 Siwon Kang <<user@hostname.org>>
+ * Copyright (C) 2017 Siwon Kang <<kkangshawn@gmail.com>>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,12 +46,13 @@
 /**
  * SECTION:element-gzdec
  *
- * FIXME:Describe gzdec here.
+ * gzip decoder that receives a stream compressed with gzip and emits an
+ * uncompressed stream.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch -v -m fakesrc ! gzdec ! fakesink silent=TRUE
+ * gst-launch -v -m filesrc location=file.txt.gz ! gzdec ! filesink location="file.txt"
  * ]|
  * </refsect2>
  */
@@ -134,10 +135,10 @@ gst_gzdec_class_init (GstgzdecClass * klass)
           FALSE, G_PARAM_READWRITE));
 
   gst_element_class_set_details_simple(gstelement_class,
-    "gzdec",
-    "FIXME:Generic",
-    "FIXME:Generic Template Element",
-    "Siwon Kang <<user@hostname.org>>");
+    "gzip decoder",
+    "Decoder/File",
+    "Receives a stream compressed with gzip and emits an uncompressed stream",
+    "Siwon Kang <<kkangshawn@gmail.com>>");
 
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&src_factory));
@@ -287,7 +288,7 @@ gzdec_init (GstPlugin * gzdec)
    * exchange the string 'Template gzdec' with your description
    */
   GST_DEBUG_CATEGORY_INIT (gst_gzdec_debug, "gzdec",
-      0, "Template gzdec");
+      0, "gzip decoder plugin");
 
   return gst_element_register (gzdec, "gzdec", GST_RANK_NONE,
       GST_TYPE_GZDEC);
@@ -314,7 +315,7 @@ GST_PLUGIN_DEFINE (
 #else
     "gzdec",
 #endif
-    "Template gzdec",
+    "gzip decoder plugin",
     gzdec_init,
     VERSION,
     "LGPL",
