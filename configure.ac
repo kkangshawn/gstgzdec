@@ -12,6 +12,9 @@ dnl required versions of gstreamer 0.10 and plugins-base
 GST010_REQUIRED=0.10.0
 GSTPB010_REQUIRED=0.10.0
 
+dnl required versions of gstreamer 0.10 and plugins-base
+ZLIB_REQUIRED=1.2.0
+
 AC_CONFIG_SRCDIR([src/gstgzdec.c])
 AC_CONFIG_HEADERS([config.h])
 
@@ -74,7 +77,19 @@ PKG_CHECK_MODULES(GST010, [
       packages on your system. On debian-based systems these are
       libgstreamer0.10.0-dev and libgstreamer-plugins-base1.0-dev.
       on RPM-based systems gstreamer-devel-0.10.0, libgstreamer1.0-devel
-      or similar. The minimum version required is $GST_REQUIRED.
+      or similar. The minimum version required is $GST010_REQUIRED.
+  ])
+])
+
+PKG_CHECK_MODULES(ZLIB, [
+  zlib >= $ZLIB_REQUIRED
+], [
+  AC_SUBST(ZLIB_CFLAGS)
+  AC_SUBST(ZLIB_LIBS)
+], [
+  AC_MSG_ERROR([
+      You need to install or upgrade the zlib development
+      packages on your system. The minimum version required is $ZLIB_REQUIRED.
   ])
 ])
 

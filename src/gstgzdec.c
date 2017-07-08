@@ -63,6 +63,7 @@
 
 #include <gst/gst.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "gstgzdec.h"
 
@@ -72,10 +73,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_gzdec_debug);
 #define GST_010
 #endif
 
+/* unit of decoding. 256k is the best as zlib said. */
+#define CHUNK (1024 * 256)
+
 /* Filter signals and args */
 enum
 {
-  /* FILL ME */
   LAST_SIGNAL
 };
 
@@ -86,14 +89,13 @@ enum
 };
 
 /* the capabilities of the inputs and outputs.
- *
- * describe the real formats here.
+ * filesrc and filesink also set its capability to ANY so leave both as ANY.
  */
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS ("ANY")
-    );
+);
 
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
@@ -260,17 +262,60 @@ gst_gzdec_sink_event (GstPad * pad, GstEvent * event)
 }
 
 static gint
-decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong *outlen)
+decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong * outlen)
 {
   gint ret;
+  z_stream stream;
+  guchar inbuffer[CHUNK];
+  guchar outbuffer[CHUNK];
+  gulong remainder;
+  guchar *outmsghead = *outmsg;
 
-  *outmsg = g_malloc0 (srclen);
-  memcpy (*outmsg, srcmsg, srclen);
-  *outlen = srclen;
+  /* allocate inflate state */
+  stream.zalloc = Z_NULL;
+  stream.zfree = Z_NULL;
+  stream.opaque = Z_NULL;
+  stream.avail_in = 0;
+  stream.next_in = Z_NULL;
+  ret = inflateInit2 (&stream, 16 + MAX_WBITS);
+  if (ret != Z_OK)
+    return ret;
 
-  return 0;
+  do {
+    stream.avail_in = srclen;
+    memcpy (inbuffer, srcmsg, srclen);
+//    srcmsg += srclen;
+
+    if (stream.avail_in == 0)
+      break;
+    stream.next_in = inbuffer;
+
+    *outmsg = g_malloc0 (CHUNK);
+    do {
+      stream.avail_out = CHUNK;
+      stream.next_out = outbuffer;
+      ret = inflate (&stream, Z_NO_FLUSH);
+      switch (ret) {
+      case Z_NEED_DICT:
+        ret = Z_DATA_ERROR;
+      case Z_DATA_ERROR:
+      case Z_MEM_ERROR:
+      case Z_STREAM_ERROR:
+        (void)inflateEnd(&stream);
+        return ret;
+      }
+      remainder = CHUNK - stream.avail_out;
+      memcpy (*outmsg, outbuffer, remainder);
+      *outlen += remainder;
+
+    } while (stream.avail_out == 0);
+  } while (ret != Z_STREAM_END);
+
+  /* clean up and return */
+  (void)inflateEnd(&stream);
+  return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
 }
-/* at this moment, let's simply copying the source contents to output buffer */
+
 static GstBuffer *
 gst_gzdec_process_data (GstBuffer * buf)
 {
@@ -286,10 +331,10 @@ gst_gzdec_process_data (GstBuffer * buf)
   g_print ("Source message: %s", srcmsg);
   decode_message (srcmsg, gst_buffer_get_size(buf), &decodedmsg, &decodedmsglen);
 
-  g_print ("Decoded message: %s(%d)", decodedmsg, decodedmsglen);
+  g_print ("Decoded message: %s(%lu)", decodedmsg, decodedmsglen);
   outbuf = gst_buffer_new ();
   mem = gst_memory_new_wrapped (GST_MEMORY_FLAG_READONLY,
-                  decodedmsg, 100, 0, decodedmsglen, NULL, NULL);
+                  decodedmsg, decodedmsglen, 0, decodedmsglen, NULL, NULL);
   gst_buffer_append_memory (outbuf, mem);
 
   return outbuf;
