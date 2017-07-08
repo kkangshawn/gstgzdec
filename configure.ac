@@ -8,6 +8,10 @@ dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.0.0
 GSTPB_REQUIRED=1.0.0
 
+dnl required versions of gstreamer 0.10 and plugins-base
+GST010_REQUIRED=0.10.0
+GSTPB010_REQUIRED=0.10.0
+
 AC_CONFIG_SRCDIR([src/gstgzdec.c])
 AC_CONFIG_HEADERS([config.h])
 
@@ -45,7 +49,6 @@ dnl etc.
 PKG_CHECK_MODULES(GST, [
   gstreamer-1.0 >= $GST_REQUIRED
   gstreamer-base-1.0 >= $GST_REQUIRED
-  gstreamer-controller-1.0 >= $GST_REQUIRED
 ], [
   AC_SUBST(GST_CFLAGS)
   AC_SUBST(GST_LIBS)
@@ -55,6 +58,22 @@ PKG_CHECK_MODULES(GST, [
       packages on your system. On debian-based systems these are
       libgstreamer1.0-dev and libgstreamer-plugins-base1.0-dev.
       on RPM-based systems gstreamer1.0-devel, libgstreamer1.0-devel
+      or similar. The minimum version required is $GST_REQUIRED.
+  ])
+])
+
+PKG_CHECK_MODULES(GST010, [
+  gstreamer-0.10 >= $GST010_REQUIRED
+  gstreamer-base-0.10 >= $GST010_REQUIRED
+], [
+  AC_SUBST(GST010_CFLAGS)
+  AC_SUBST(GST010_LIBS)
+], [
+  AC_MSG_ERROR([
+      You need to install or upgrade the GStreamer development
+      packages on your system. On debian-based systems these are
+      libgstreamer0.10.0-dev and libgstreamer-plugins-base1.0-dev.
+      on RPM-based systems gstreamer-devel-0.10.0, libgstreamer1.0-devel
       or similar. The minimum version required is $GST_REQUIRED.
   ])
 ])
@@ -77,6 +96,14 @@ else
   plugindir="\$(libdir)/gstreamer-1.0"
 fi
 AC_SUBST(plugindir)
+
+dnl set the plugindir where plugins should be installed (for src/Makefile.am)
+if test "x${prefix}" = "x$HOME"; then
+  plugindir010="$HOME/.gstreamer-0.10/plugins"
+else
+  plugindir010="\$(libdir)/gstreamer-0.10"
+fi
+AC_SUBST(plugindir010)
 
 dnl set proper LDFLAGS for plugins
 GST_PLUGIN_LDFLAGS='-module -avoid-version -export-symbols-regex [_]*\(gst_\|Gst\|GST_\).*'

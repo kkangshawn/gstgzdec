@@ -66,6 +66,9 @@
 
 GST_DEBUG_CATEGORY_STATIC (gst_gzdec_debug);
 #define GST_CAT_DEFAULT gst_gzdec_debug
+#if (GST_VERSION_MAJOR == 0 && GST_VERSION_MINOR == 10)
+#define GST_010
+#endif
 
 /* Filter signals and args */
 enum
@@ -104,7 +107,11 @@ static void gst_gzdec_set_property (GObject * object, guint prop_id,
 static void gst_gzdec_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 
+#ifndef GST_010
 static gboolean gst_gzdec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event);
+#else
+static gboolean gst_gzdec_sink_event (GstPad * pad, GstEvent * event);
+#endif
 static GstFlowReturn gst_gzdec_chain (GstPad * pad, GstObject * parent, GstBuffer * buf);
 
 /* GObject vmethod implementations */
@@ -148,14 +155,26 @@ gst_gzdec_init (Gstgzdec * filter)
 {
   filter->sinkpad = gst_pad_new_from_static_template (&sink_factory, "sink");
   gst_pad_set_event_function (filter->sinkpad,
+#ifndef GST_010
                               GST_DEBUG_FUNCPTR(gst_gzdec_sink_event));
+#else
+                              gst_gzdec_sink_event);
+#endif
   gst_pad_set_chain_function (filter->sinkpad,
+#ifndef GST_010
                               GST_DEBUG_FUNCPTR(gst_gzdec_chain));
+#else
+                              gst_gzdec_chain);
+#endif
+#ifndef GST_010
   GST_PAD_SET_PROXY_CAPS (filter->sinkpad);
+#endif
   gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
 
   filter->srcpad = gst_pad_new_from_static_template (&src_factory, "src");
+#ifndef GST_010
   GST_PAD_SET_PROXY_CAPS (filter->srcpad);
+#endif
   gst_element_add_pad (GST_ELEMENT (filter), filter->srcpad);
 
   filter->silent = FALSE;
@@ -196,18 +215,25 @@ gst_gzdec_get_property (GObject * object, guint prop_id,
 /* GstElement vmethod implementations */
 
 /* this function handles sink events */
+#ifndef GST_010
 static gboolean
 gst_gzdec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event)
 {
   Gstgzdec *filter;
-  gboolean ret;
 
   filter = GST_GZDEC (parent);
 
   GST_LOG_OBJECT (filter, "Received %s event: %" GST_PTR_FORMAT,
       GST_EVENT_TYPE_NAME (event), event);
+#else
+static gboolean
+gst_gzdec_sink_event (GstPad * pad, GstEvent * event)
+{
+#endif
+  gboolean ret;
 
   switch (GST_EVENT_TYPE (event)) {
+#ifndef GST_010
     case GST_EVENT_CAPS:
     {
       GstCaps * caps;
@@ -219,8 +245,13 @@ gst_gzdec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event)
       ret = gst_pad_event_default (pad, parent, event);
       break;
     }
+#endif
     default:
+#ifndef GST_010
       ret = gst_pad_event_default (pad, parent, event);
+#else
+      ret = gst_pad_event_default (pad, event);
+#endif
       break;
   }
   return ret;
@@ -278,7 +309,11 @@ gzdec_init (GstPlugin * gzdec)
 GST_PLUGIN_DEFINE (
     GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
+#ifndef GST_010
     gzdec,
+#else
+    "gzdec",
+#endif
     "Template gzdec",
     gzdec_init,
     VERSION,
