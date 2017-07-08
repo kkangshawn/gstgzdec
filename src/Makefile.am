@@ -1,6 +1,6 @@
 # Note: plugindir is set in configure
 
-plugin_LTLIBRARIES = libgstgzdec.la libgstgzdec_0_10.la
+plugin_LTLIBRARIES = libgstgzdec.la #libgstgzdec_0_10.la
 
 ## Plugin 1
 
@@ -13,16 +13,17 @@ libgstgzdec_la_LIBADD = $(GST_LIBS)
 libgstgzdec_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
 libgstgzdec_la_LIBTOOLFLAGS = --tag=disable-static
 
+## Disabled because too many declarations have altered from 0.10
 ## Plugin 2
 
 # sources used to compile this plug-in
-libgstgzdec_0_10_la_SOURCES = gstgzdec.c gstgzdec.h
+#libgstgzdec_0_10_la_SOURCES = gstgzdec.c gstgzdec.h
 
 # compiler and linker flags used to compile this plugin, set in configure.ac
-libgstgzdec_0_10_la_CFLAGS = $(GST010_CFLAGS)
-libgstgzdec_0_10_la_LIBADD = $(GST010_LIBS)
-libgstgzdec_0_10_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
-libgstgzdec_0_10_la_LIBTOOLFLAGS = --tag=disable-static
+#libgstgzdec_0_10_la_CFLAGS = $(GST010_CFLAGS)
+#libgstgzdec_0_10_la_LIBADD = $(GST010_LIBS)
+#libgstgzdec_0_10_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
+#libgstgzdec_0_10_la_LIBTOOLFLAGS = --tag=disable-static
 
 
 # headers we need but don't want installed

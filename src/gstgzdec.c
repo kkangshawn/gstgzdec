@@ -62,6 +62,7 @@
 #endif
 
 #include <gst/gst.h>
+#include <string.h>
 
 #include "gstgzdec.h"
 
@@ -258,6 +259,41 @@ gst_gzdec_sink_event (GstPad * pad, GstEvent * event)
   return ret;
 }
 
+static gint
+decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong *outlen)
+{
+  gint ret;
+
+  *outmsg = g_malloc0 (srclen);
+  memcpy (*outmsg, srcmsg, srclen);
+  *outlen = srclen;
+
+  return 0;
+}
+/* at this moment, let's simply copying the source contents to output buffer */
+static GstBuffer *
+gst_gzdec_process_data (GstBuffer * buf)
+{
+  GstBuffer *outbuf = NULL;
+  GstMapInfo info;
+  GstMemory *mem = NULL;
+  guchar *srcmsg, *decodedmsg = NULL;
+  gulong decodedmsglen = 0;
+
+  gst_buffer_map (buf, &info, GST_MAP_READ);
+  srcmsg = (guchar *)info.data;
+
+  g_print ("Source message: %s", srcmsg);
+  decode_message (srcmsg, gst_buffer_get_size(buf), &decodedmsg, &decodedmsglen);
+
+  g_print ("Decoded message: %s(%d)", decodedmsg, decodedmsglen);
+  outbuf = gst_buffer_new ();
+  mem = gst_memory_new_wrapped (GST_MEMORY_FLAG_READONLY,
+                  decodedmsg, 100, 0, decodedmsglen, NULL, NULL);
+  gst_buffer_append_memory (outbuf, mem);
+
+  return outbuf;
+}
 /* chain function
  * this function does the actual processing
  */
@@ -265,14 +301,21 @@ static GstFlowReturn
 gst_gzdec_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 {
   Gstgzdec *filter;
+  GstBuffer *outbuf;
 
   filter = GST_GZDEC (parent);
 
   if (filter->silent == FALSE)
-    g_print ("I'm plugged, therefore I'm in.\n");
-
-  /* just push out the incoming buffer without touching it */
-  return gst_pad_push (filter->srcpad, buf);
+    g_print ("Have data of size %" G_GSIZE_FORMAT" bytes!\n",
+                    gst_buffer_get_size(buf));
+  outbuf = gst_gzdec_process_data (buf);
+  gst_buffer_unref (buf);
+  if (!outbuf) {
+    GST_ELEMENT_ERROR (GST_ELEMENT (filter), STREAM, FAILED, (NULL), (NULL));
+    return GST_FLOW_ERROR;
+  }
+  /* push out the output buffer to source pad after processing it */
+  return gst_pad_push (filter->srcpad, outbuf);
 }
 
 
@@ -283,10 +326,7 @@ gst_gzdec_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 static gboolean
 gzdec_init (GstPlugin * gzdec)
 {
-  /* debug category for fltering log messages
-   *
-   * exchange the string 'Template gzdec' with your description
-   */
+  /* debug category for filtering log messages */
   GST_DEBUG_CATEGORY_INIT (gst_gzdec_debug, "gzdec",
       0, "gzip decoder plugin");
 
@@ -303,10 +343,7 @@ gzdec_init (GstPlugin * gzdec)
 #define PACKAGE "myfirstgzdec"
 #endif
 
-/* gstreamer looks for this structure to register gzdecs
- *
- * exchange the string 'Template gzdec' with your gzdec description
- */
+/* gstreamer looks for this structure to register gzdecs */
 GST_PLUGIN_DEFINE (
     GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
