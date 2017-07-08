@@ -24,5 +24,8 @@ sudo dnf install zlib-1.2.x zlib-static-1.2.x
 gst-launch-1.0 filesrc location=<input_filename.gz> ! gzdec ! filesink location=<output_filename>
 ```
 ##Todo
-disabled GStreamer 0.10 support temporarily because too many declarations have altered from 0.10
-bzip support
+- disabled GStreamer 0.10 support temporarily because too many declarations have altered from 0.10
+- bzip support
+
+##bug
+- longer file than CHUNK is not inflated. Need time more to design how to merge packetized blocks into one. 
