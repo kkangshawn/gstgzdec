@@ -1,4 +1,4 @@
-#gzdec
+# gzdec
 
 GStreamer gzip decoder plugin
 ---------------------------------------------
@@ -7,10 +7,10 @@ GStreamer gzip decoder plugin
 - filter-like element with a sink pad and a source pad
 - works on Linux Ubuntu 16.10/Fedora 24(x86_64)
 
-##Build
+## Build
 - Please use autotool (autogen.sh)
 
-##Note for Linux system
+## Note for Linux system
 - This will generate 2 plugins for GStreamer 1.0 and 0.10 so it requires both devel package to build.
 - This also requires zlib static library
 ```sh
@@ -19,13 +19,13 @@ sudo dnf install zlib-1.2.x zlib-static-1.2.x
 ```
 
 
-##Usage
+## Usage
 ```sh
 gst-launch-1.0 filesrc location=<input_filename.gz> ! gzdec ! filesink location=<output_filename>
 ```
-##Todo
+## Todo
 - disabled GStreamer 0.10 support temporarily because too many declarations have altered from 0.10
 - bzip support
 
-##bug
+## bug
 - longer file than CHUNK is not inflated. Need time more to design how to merge packetized blocks into one. 
