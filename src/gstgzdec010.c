@@ -2,7 +2,7 @@
  * GStreamer
  * Copyright (C) 2005 Thomas Vander Stichele <thomas@apestaart.org>
  * Copyright (C) 2005 Ronald S. Bultje <rbultje@ronald.bitfreak.net>
- * Copyright (C) 2017 Siwon Kang <<kkangshawn@gmail.com>>
+ * Copyright (C) 2017 Shawn <<user@hostname.org>>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -44,7 +44,7 @@
  */
 
 /**
- * SECTION:element-gzdec
+ * SECTION:element-gzdec010
  *
  * gzip decoder that receives a stream compressed with gzip and emits an
  * uncompressed stream.
@@ -65,10 +65,10 @@
 #include <string.h>
 #include <zlib.h>
 
-#include "gstgzdec.h"
+#include "gstgzdec010.h"
 
-GST_DEBUG_CATEGORY_STATIC (gst_gzdec_debug);
-#define GST_CAT_DEFAULT gst_gzdec_debug
+GST_DEBUG_CATEGORY_STATIC (gst_gzdec010_debug);
+#define GST_CAT_DEFAULT gst_gzdec010_debug
 
 /* unit of decoding. 256k is the best as zlib said. */
 #define CHUNK (1024 * 256)
@@ -76,6 +76,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_gzdec_debug);
 /* Filter signals and args */
 enum
 {
+  /* FILL ME */
   LAST_SIGNAL
 };
 
@@ -86,13 +87,14 @@ enum
 };
 
 /* the capabilities of the inputs and outputs.
- * filesrc and filesink also set its capability to ANY so leave both as ANY.
+ *
+ * describe the real formats here.
  */
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS ("ANY")
-);
+    );
 
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
@@ -100,46 +102,52 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
     GST_STATIC_CAPS ("ANY")
     );
 
-#define gst_gzdec_parent_class parent_class
-G_DEFINE_TYPE (Gstgzdec, gst_gzdec, GST_TYPE_ELEMENT);
+GST_BOILERPLATE (Gstgzdec010, gst_gzdec010, GstElement,
+    GST_TYPE_ELEMENT);
 
-static void gst_gzdec_set_property (GObject * object, guint prop_id,
+static void gst_gzdec010_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec);
-static void gst_gzdec_get_property (GObject * object, guint prop_id,
+static void gst_gzdec010_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 
-static gboolean gst_gzdec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event);
-static GstFlowReturn gst_gzdec_chain (GstPad * pad, GstObject * parent, GstBuffer * buf);
+static gboolean gst_gzdec010_set_caps (GstPad * pad, GstCaps * caps);
+static GstFlowReturn gst_gzdec010_chain (GstPad * pad, GstBuffer * buf);
 
 /* GObject vmethod implementations */
 
-/* initialize the gzdec's class */
 static void
-gst_gzdec_class_init (GstgzdecClass * klass)
+gst_gzdec010_base_init (gpointer gclass)
 {
-  GObjectClass *gobject_class;
-  GstElementClass *gstelement_class;
+  GstElementClass *element_class = GST_ELEMENT_CLASS (gclass);
 
-  gobject_class = (GObjectClass *) klass;
-  gstelement_class = (GstElementClass *) klass;
-
-  gobject_class->set_property = gst_gzdec_set_property;
-  gobject_class->get_property = gst_gzdec_get_property;
-
-  g_object_class_install_property (gobject_class, PROP_SILENT,
-      g_param_spec_boolean ("silent", "Silent", "Produce verbose output ?",
-          FALSE, G_PARAM_READWRITE));
-
-  gst_element_class_set_details_simple(gstelement_class,
+  gst_element_class_set_details_simple(element_class,
     "gzip decoder",
     "Decoder/File",
     "Receives a stream compressed with gzip and emits an uncompressed stream",
     "Siwon Kang <<kkangshawn@gmail.com>>");
 
-  gst_element_class_add_pad_template (gstelement_class,
+  gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&src_factory));
-  gst_element_class_add_pad_template (gstelement_class,
+  gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&sink_factory));
+}
+
+/* initialize the gzdec010's class */
+static void
+gst_gzdec010_class_init (Gstgzdec010Class * klass)
+{
+  GObjectClass *gobject_class;
+//  GstElementClass *gstelement_class;
+
+  gobject_class = (GObjectClass *) klass;
+//  gstelement_class = (GstElementClass *) klass;
+
+  gobject_class->set_property = gst_gzdec010_set_property;
+  gobject_class->get_property = gst_gzdec010_get_property;
+
+  g_object_class_install_property (gobject_class, PROP_SILENT,
+      g_param_spec_boolean ("silent", "Silent", "Produce verbose output ?",
+          FALSE, G_PARAM_READWRITE));
 }
 
 /* initialize the new element
@@ -148,28 +156,31 @@ gst_gzdec_class_init (GstgzdecClass * klass)
  * initialize instance structure
  */
 static void
-gst_gzdec_init (Gstgzdec * filter)
+gst_gzdec010_init (Gstgzdec010 * filter,
+    Gstgzdec010Class * gclass)
 {
   filter->sinkpad = gst_pad_new_from_static_template (&sink_factory, "sink");
-  gst_pad_set_event_function (filter->sinkpad,
-                              GST_DEBUG_FUNCPTR(gst_gzdec_sink_event));
+  gst_pad_set_setcaps_function (filter->sinkpad,
+                                GST_DEBUG_FUNCPTR(gst_gzdec010_set_caps));
+  gst_pad_set_getcaps_function (filter->sinkpad,
+                                GST_DEBUG_FUNCPTR(gst_pad_proxy_getcaps));
   gst_pad_set_chain_function (filter->sinkpad,
-                              GST_DEBUG_FUNCPTR(gst_gzdec_chain));
-  GST_PAD_SET_PROXY_CAPS (filter->sinkpad);
-  gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
+                              GST_DEBUG_FUNCPTR(gst_gzdec010_chain));
 
   filter->srcpad = gst_pad_new_from_static_template (&src_factory, "src");
-  GST_PAD_SET_PROXY_CAPS (filter->srcpad);
-  gst_element_add_pad (GST_ELEMENT (filter), filter->srcpad);
+  gst_pad_set_getcaps_function (filter->srcpad,
+                                GST_DEBUG_FUNCPTR(gst_pad_proxy_getcaps));
 
+  gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
+  gst_element_add_pad (GST_ELEMENT (filter), filter->srcpad);
   filter->silent = FALSE;
 }
 
 static void
-gst_gzdec_set_property (GObject * object, guint prop_id,
+gst_gzdec010_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  Gstgzdec *filter = GST_GZDEC (object);
+  Gstgzdec010 *filter = GST_GZDEC010 (object);
 
   switch (prop_id) {
     case PROP_SILENT:
@@ -182,10 +193,10 @@ gst_gzdec_set_property (GObject * object, guint prop_id,
 }
 
 static void
-gst_gzdec_get_property (GObject * object, guint prop_id,
+gst_gzdec010_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
-  Gstgzdec *filter = GST_GZDEC (object);
+  Gstgzdec010 *filter = GST_GZDEC010 (object);
 
   switch (prop_id) {
     case PROP_SILENT:
@@ -199,35 +210,18 @@ gst_gzdec_get_property (GObject * object, guint prop_id,
 
 /* GstElement vmethod implementations */
 
-/* this function handles sink events */
+/* this function handles the link with other elements */
 static gboolean
-gst_gzdec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event)
+gst_gzdec010_set_caps (GstPad * pad, GstCaps * caps)
 {
-  Gstgzdec *filter;
-  gboolean ret;
+  Gstgzdec010 *filter;
+  GstPad *otherpad;
 
-  filter = GST_GZDEC (parent);
+  filter = GST_GZDEC010 (gst_pad_get_parent (pad));
+  otherpad = (pad == filter->srcpad) ? filter->sinkpad : filter->srcpad;
+  gst_object_unref (filter);
 
-  GST_LOG_OBJECT (filter, "Received %s event: %" GST_PTR_FORMAT,
-      GST_EVENT_TYPE_NAME (event), event);
-
-  switch (GST_EVENT_TYPE (event)) {
-    case GST_EVENT_CAPS:
-    {
-      GstCaps * caps;
-
-      gst_event_parse_caps (event, &caps);
-      /* do something with the caps */
-
-      /* and forward */
-      ret = gst_pad_event_default (pad, parent, event);
-      break;
-    }
-    default:
-      ret = gst_pad_event_default (pad, parent, event);
-      break;
-  }
-  return ret;
+  return gst_pad_set_caps (otherpad, caps);
 }
 
 static gint
@@ -289,63 +283,67 @@ static GstBuffer *
 gst_gzdec_process_data (GstBuffer * buf)
 {
   GstBuffer *outbuf = NULL;
-  GstMapInfo info;
-  GstMemory *mem = NULL;
+//  GstMapInfo info;
+//  GstMemory *mem = NULL;
   guchar *srcmsg, *decodedmsg = NULL;
   gulong decodedmsglen = 0;
 
-  gst_buffer_map (buf, &info, GST_MAP_READ);
-  srcmsg = (guchar *)info.data;
+//  gst_buffer_map (buf, &info, GST_MAP_READ);
+  srcmsg = (guchar *)GST_BUFFER_DATA (buf);
 
   g_print ("Source message: %s", srcmsg);
-  decode_message (srcmsg, gst_buffer_get_size(buf), &decodedmsg, &decodedmsglen);
+  decode_message (srcmsg, GST_BUFFER_SIZE (buf), &decodedmsg, &decodedmsglen);
 
   g_print ("Decoded message: %s(%lu)", decodedmsg, decodedmsglen);
   outbuf = gst_buffer_new ();
-  mem = gst_memory_new_wrapped (GST_MEMORY_FLAG_READONLY,
-                  decodedmsg, decodedmsglen, 0, decodedmsglen, NULL, NULL);
-  gst_buffer_append_memory (outbuf, mem);
+  GST_BUFFER_SIZE (outbuf) = decodedmsglen;
+  gst_buffer_set_data (outbuf, decodedmsg, decodedmsglen);
+
+//  mem = gst_memory_new_wrapped (GST_MEMORY_FLAG_READONLY,
+//                  decodedmsg, decodedmsglen, 0, decodedmsglen, NULL, NULL);
+//  gst_buffer_append_memory (outbuf, mem);
 
   return outbuf;
 }
+
 /* chain function
  * this function does the actual processing
  */
 static GstFlowReturn
-gst_gzdec_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
+gst_gzdec010_chain (GstPad * pad, GstBuffer * buf)
 {
-  Gstgzdec *filter;
+  Gstgzdec010 *filter;
   GstBuffer *outbuf;
 
-  filter = GST_GZDEC (parent);
+  filter = GST_GZDEC010 (GST_OBJECT_PARENT (pad));
 
   if (filter->silent == FALSE)
-    g_print ("Have data of size %" G_GSIZE_FORMAT" bytes!\n",
-                    gst_buffer_get_size(buf));
+    g_print ("Have data of size %u bytes!\n",
+                    GST_BUFFER_SIZE (buf));
   outbuf = gst_gzdec_process_data (buf);
   gst_buffer_unref (buf);
   if (!outbuf) {
     GST_ELEMENT_ERROR (GST_ELEMENT (filter), STREAM, FAILED, (NULL), (NULL));
     return GST_FLOW_ERROR;
   }
-  /* push out the output buffer to source pad after processing it */
+
+  /* just push out the incoming buffer without touching it */
   return gst_pad_push (filter->srcpad, outbuf);
 }
-
 
 /* entry point to initialize the plug-in
  * initialize the plug-in itself
  * register the element factories and other features
  */
 static gboolean
-gzdec_init (GstPlugin * gzdec)
+gzdec010_init (GstPlugin * gzdec010)
 {
-  /* debug category for filtering log messages */
-  GST_DEBUG_CATEGORY_INIT (gst_gzdec_debug, "gzdec",
+  /* debug category for fltering log messages */
+  GST_DEBUG_CATEGORY_INIT (gst_gzdec010_debug, "gzdec",
       0, "gzip decoder plugin");
 
-  return gst_element_register (gzdec, "gzdec", GST_RANK_NONE,
-      GST_TYPE_GZDEC);
+  return gst_element_register (gzdec010, "gzdec", GST_RANK_NONE,
+      GST_TYPE_GZDEC010);
 }
 
 /* PACKAGE: this is usually set by autotools depending on some _INIT macro
@@ -354,16 +352,19 @@ gzdec_init (GstPlugin * gzdec)
  * compile this code. GST_PLUGIN_DEFINE needs PACKAGE to be defined.
  */
 #ifndef PACKAGE
-#define PACKAGE "myfirstgzdec"
+#define PACKAGE "myfirstgzdec010"
 #endif
 
-/* gstreamer looks for this structure to register gzdecs */
+/* gstreamer looks for this structure to register gzdec010s
+ *
+ * exchange the string 'Template gzdec010' with your gzdec010 description
+ */
 GST_PLUGIN_DEFINE (
     GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    gzdec,
+    "gzdec",
     "gzip decoder plugin",
-    gzdec_init,
+    gzdec010_init,
     VERSION,
     "LGPL",
     "GStreamer",
