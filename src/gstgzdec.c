@@ -62,16 +62,12 @@
 #endif
 
 #include <gst/gst.h>
-#include <string.h>
-#include <zlib.h>
 
 #include "gstgzdec.h"
+#include "zlibdec.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_gzdec_debug);
 #define GST_CAT_DEFAULT gst_gzdec_debug
-
-/* unit of decoding. 256k is the best as zlib said. */
-#define CHUNK (1024 * 256)
 
 /* Filter signals and args */
 enum
@@ -230,61 +226,6 @@ gst_gzdec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event)
   return ret;
 }
 
-static gint
-decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong * outlen)
-{
-  gint ret;
-  z_stream stream;
-  guchar inbuffer[CHUNK];
-  guchar outbuffer[CHUNK];
-  gulong remainder;
-  guchar *outmsghead = *outmsg;
-
-  /* allocate inflate state */
-  stream.zalloc = Z_NULL;
-  stream.zfree = Z_NULL;
-  stream.opaque = Z_NULL;
-  stream.avail_in = 0;
-  stream.next_in = Z_NULL;
-  ret = inflateInit2 (&stream, 16 + MAX_WBITS);
-  if (ret != Z_OK)
-    return ret;
-
-  do {
-    stream.avail_in = srclen;
-    memcpy (inbuffer, srcmsg, srclen);
-//    srcmsg += srclen;
-
-    if (stream.avail_in == 0)
-      break;
-    stream.next_in = inbuffer;
-
-    *outmsg = g_malloc0 (CHUNK);
-    do {
-      stream.avail_out = CHUNK;
-      stream.next_out = outbuffer;
-      ret = inflate (&stream, Z_NO_FLUSH);
-      switch (ret) {
-      case Z_NEED_DICT:
-        ret = Z_DATA_ERROR;
-      case Z_DATA_ERROR:
-      case Z_MEM_ERROR:
-      case Z_STREAM_ERROR:
-        (void)inflateEnd(&stream);
-        return ret;
-      }
-      remainder = CHUNK - stream.avail_out;
-      memcpy (*outmsg, outbuffer, remainder);
-      *outlen += remainder;
-
-    } while (stream.avail_out == 0);
-  } while (ret != Z_STREAM_END);
-
-  /* clean up and return */
-  (void)inflateEnd(&stream);
-  return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
-}
-
 static GstBuffer *
 gst_gzdec_process_data (GstBuffer * buf)
 {
@@ -297,10 +238,10 @@ gst_gzdec_process_data (GstBuffer * buf)
   gst_buffer_map (buf, &info, GST_MAP_READ);
   srcmsg = (guchar *)info.data;
 
-  g_print ("Source message: %s", srcmsg);
+  g_print ("Source message: %s\n", srcmsg);
   decode_message (srcmsg, gst_buffer_get_size(buf), &decodedmsg, &decodedmsglen);
 
-  g_print ("Decoded message: %s(%lu)", decodedmsg, decodedmsglen);
+  g_print ("Decoded message: %s(%lu)\n", decodedmsg, decodedmsglen);
   outbuf = gst_buffer_new ();
   mem = gst_memory_new_wrapped (GST_MEMORY_FLAG_READONLY,
                   decodedmsg, decodedmsglen, 0, decodedmsglen, NULL, NULL);

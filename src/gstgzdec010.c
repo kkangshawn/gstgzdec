@@ -62,16 +62,12 @@
 #endif
 
 #include <gst/gst.h>
-#include <string.h>
-#include <zlib.h>
 
 #include "gstgzdec010.h"
+#include "zlibdec.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_gzdec010_debug);
 #define GST_CAT_DEFAULT gst_gzdec010_debug
-
-/* unit of decoding. 256k is the best as zlib said. */
-#define CHUNK (1024 * 256)
 
 /* Filter signals and args */
 enum
@@ -137,10 +133,8 @@ static void
 gst_gzdec010_class_init (Gstgzdec010Class * klass)
 {
   GObjectClass *gobject_class;
-//  GstElementClass *gstelement_class;
 
   gobject_class = (GObjectClass *) klass;
-//  gstelement_class = (GstElementClass *) klass;
 
   gobject_class->set_property = gst_gzdec010_set_property;
   gobject_class->get_property = gst_gzdec010_get_property;
@@ -224,71 +218,13 @@ gst_gzdec010_set_caps (GstPad * pad, GstCaps * caps)
   return gst_pad_set_caps (otherpad, caps);
 }
 
-static gint
-decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong * outlen)
-{
-  gint ret;
-  z_stream stream;
-  guchar inbuffer[CHUNK];
-  guchar outbuffer[CHUNK];
-  gulong remainder;
-  guchar *outmsghead = *outmsg;
-
-  /* allocate inflate state */
-  stream.zalloc = Z_NULL;
-  stream.zfree = Z_NULL;
-  stream.opaque = Z_NULL;
-  stream.avail_in = 0;
-  stream.next_in = Z_NULL;
-  ret = inflateInit2 (&stream, 16 + MAX_WBITS);
-  if (ret != Z_OK)
-    return ret;
-
-  do {
-    stream.avail_in = srclen;
-    memcpy (inbuffer, srcmsg, srclen);
-//    srcmsg += srclen;
-
-    if (stream.avail_in == 0)
-      break;
-    stream.next_in = inbuffer;
-
-    *outmsg = g_malloc0 (CHUNK);
-    do {
-      stream.avail_out = CHUNK;
-      stream.next_out = outbuffer;
-      ret = inflate (&stream, Z_NO_FLUSH);
-      switch (ret) {
-      case Z_NEED_DICT:
-        ret = Z_DATA_ERROR;
-      case Z_DATA_ERROR:
-      case Z_MEM_ERROR:
-      case Z_STREAM_ERROR:
-        (void)inflateEnd(&stream);
-        return ret;
-      }
-      remainder = CHUNK - stream.avail_out;
-      memcpy (*outmsg, outbuffer, remainder);
-      *outlen += remainder;
-
-    } while (stream.avail_out == 0);
-  } while (ret != Z_STREAM_END);
-
-  /* clean up and return */
-  (void)inflateEnd(&stream);
-  return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
-}
-
 static GstBuffer *
 gst_gzdec_process_data (GstBuffer * buf)
 {
   GstBuffer *outbuf = NULL;
-//  GstMapInfo info;
-//  GstMemory *mem = NULL;
   guchar *srcmsg, *decodedmsg = NULL;
   gulong decodedmsglen = 0;
 
-//  gst_buffer_map (buf, &info, GST_MAP_READ);
   srcmsg = (guchar *)GST_BUFFER_DATA (buf);
 
   g_print ("Source message: %s", srcmsg);
@@ -298,10 +234,6 @@ gst_gzdec_process_data (GstBuffer * buf)
   outbuf = gst_buffer_new ();
   GST_BUFFER_SIZE (outbuf) = decodedmsglen;
   gst_buffer_set_data (outbuf, decodedmsg, decodedmsglen);
-
-//  mem = gst_memory_new_wrapped (GST_MEMORY_FLAG_READONLY,
-//                  decodedmsg, decodedmsglen, 0, decodedmsglen, NULL, NULL);
-//  gst_buffer_append_memory (outbuf, mem);
 
   return outbuf;
 }
