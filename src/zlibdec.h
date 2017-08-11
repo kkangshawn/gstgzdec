@@ -11,4 +11,6 @@ struct ll_buffer {
   struct ll_buffer *next;
 };
 
+gint init_decoder (void);
+void deinit_decoder (void);
 gint decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong * outlen);

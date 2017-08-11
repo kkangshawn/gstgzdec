@@ -159,6 +159,8 @@ gst_gzdec_init (Gstgzdec * filter)
   gst_element_add_pad (GST_ELEMENT (filter), filter->srcpad);
 
   filter->silent = FALSE;
+
+  init_decoder ();
 }
 
 static void
@@ -223,6 +225,7 @@ gst_gzdec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event)
       ret = gst_pad_event_default (pad, parent, event);
       break;
   }
+
   return ret;
 }
 
@@ -246,6 +249,9 @@ gst_gzdec_process_data (GstBuffer * buf)
   mem = gst_memory_new_wrapped (GST_MEMORY_FLAG_READONLY,
                   decodedmsg, decodedmsglen, 0, decodedmsglen, NULL, NULL);
   gst_buffer_append_memory (outbuf, mem);
+
+  memset (info.data, 0xff, info.size);
+  gst_buffer_unmap (buf, &info);
 
   return outbuf;
 }

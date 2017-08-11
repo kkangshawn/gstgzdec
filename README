@@ -1,6 +1,6 @@
 # gzdec
 
-GStreamer gzip decoder plugin v1.1
+GStreamer gzip decoder plugin v1.2
 ---------------------------------------------
 
 - using zlib library for decompression

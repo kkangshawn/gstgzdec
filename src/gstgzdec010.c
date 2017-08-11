@@ -168,6 +168,8 @@ gst_gzdec010_init (Gstgzdec010 * filter,
   gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
   gst_element_add_pad (GST_ELEMENT (filter), filter->srcpad);
   filter->silent = FALSE;
+
+  init_decoder ();
 }
 
 static void

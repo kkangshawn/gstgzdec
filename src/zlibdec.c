@@ -1,19 +1,11 @@
 #include "zlibdec.h"
 
+z_stream stream;
+
 gint
-decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong * outlen)
+init_decoder (void)
 {
   gint ret;
-  z_stream stream;
-  guchar inbuffer[CHUNK];
-  guchar outbuffer[CHUNK];
-  gulong processed;
-  struct ll_buffer *outdata, *head;
-  guchar *srcidx = (guchar *)srcmsg;
-  gint remainder = srclen;
-
-  outdata = g_malloc0 (sizeof(struct ll_buffer));
-  head = outdata;
 
   /* allocate inflate state */
   stream.zalloc = Z_NULL;
@@ -23,8 +15,30 @@ decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulo
   stream.next_in = Z_NULL;
 
   ret = inflateInit2 (&stream, 16 + MAX_WBITS);
-  if (ret != Z_OK)
-    return ret;
+
+  return ret;
+}
+
+void
+deinit_decoder (void)
+{
+  /* clean up and return */
+  (void)inflateEnd(&stream);
+}
+
+gint
+decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulong * outlen)
+{
+  gint ret;
+  guchar inbuffer[CHUNK];
+  guchar outbuffer[CHUNK];
+  gulong processed;
+  struct ll_buffer *outdata, *head;
+  guchar *srcidx = (guchar *)srcmsg;
+  gint remainder = srclen;
+
+  outdata = g_malloc0 (sizeof(struct ll_buffer));
+  head = outdata;
 
   do {
     memset (inbuffer, 0, CHUNK);
@@ -93,8 +107,6 @@ decode_message (const guchar * srcmsg, const gint srclen, guchar ** outmsg, gulo
     g_free (temp);
   }
 
-  /* clean up and return */
-  (void)inflateEnd(&stream);
   return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
 }
 
